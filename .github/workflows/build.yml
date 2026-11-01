@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -17,3 +19,9 @@ jobs:
         with:
           name: MagicCalc-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK to Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest -y --cleanup-tag || true
+          gh release create latest "app/build/outputs/apk/debug/app-debug.apk#MagicCalc.apk" --title "마술사의 계산기 APK" --notes "폰에서 MagicCalc.apk를 받아 설치하세요."
