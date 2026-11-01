@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#F6F6F8">
+<title>계산기</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  html, body { margin: 0; height: 100%; background: #F6F6F8; overflow: hidden; touch-action: manipulation; overscroll-behavior: none; }
+  body { font-family: "SamsungOne", "Roboto", "Noto Sans KR", "Noto Sans CJK KR", sans-serif; color: #3C3C3C; }
+  #app { --u: 0.4px; width: calc(1080 * var(--u)); height: 100%; margin: 0 auto; display: flex; flex-direction: column; background: #F6F6F8; position: relative; }
+
+  #top { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; }
+  #display { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; padding: 0 calc(105 * var(--u)) calc(14 * var(--u)) calc(40 * var(--u)); overflow: hidden; }
+  #expr { text-align: right; line-height: 1.12; font-weight: 300; color: #2B2B2B; word-break: break-all; overflow: hidden; font-size: calc(150 * var(--u)); }
+  #expr .t { white-space: pre-wrap; }
+  #cursor { display: inline-block; width: calc(6 * var(--u)); height: 1.02em; background: #4CAF1F; vertical-align: -0.16em; margin-left: calc(4 * var(--u)); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #preview { text-align: right; min-height: calc(100 * var(--u)); font-size: calc(80 * var(--u)); line-height: calc(100 * var(--u)); color: #9A9A9E; font-weight: 300; white-space: nowrap; overflow: hidden; }
+  #display.result #preview { order: -1; min-height: calc(90 * var(--u)); line-height: calc(90 * var(--u)); }
+  #display.result #expr { font-weight: 400; color: #202020; }
+  #display.result #cursor { display: none; }
+
+  #tools { position: relative; height: calc(90 * var(--u)); margin-bottom: calc(70 * var(--u)); flex: none; }
+  #tools button { position: absolute; top: 0; height: calc(90 * var(--u)); border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #tools svg { display: block; }
+  #bHist { left: calc(166 * var(--u) - 45 * var(--u)); width: calc(90 * var(--u)); }
+  #bUnit { left: calc(347 * var(--u) - 45 * var(--u)); width: calc(90 * var(--u)); }
+  #bSci  { left: calc(527 * var(--u) - 45 * var(--u)); width: calc(90 * var(--u)); }
+  #bBack { left: calc(913 * var(--u) - 55 * var(--u)); width: calc(110 * var(--u)); }
+  #bBack svg { color: #B9DDB2; }
+  #bBack.on svg { color: #55B947; }
+
+  #divider { height: calc(3 * var(--u)); margin: 0 calc(60 * var(--u)); background: #E3E3E7; flex: none; }
+  #pad { flex: none; display: grid; grid-template-columns: repeat(4, calc(200 * var(--u))); grid-auto-rows: calc(200 * var(--u)); gap: calc(21 * var(--u)) calc(49 * var(--u)); padding: calc(87 * var(--u)) 0 calc(44 * var(--u)) calc(66 * var(--u)); box-sizing: content-box; }
+  #pad button { width: calc(200 * var(--u)); height: calc(200 * var(--u)); border-radius: 50%; border: 0; padding: 0; display: flex; align-items: center; justify-content: center; font-family: inherit; font-size: calc(98 * var(--u)); font-weight: 300; color: #404040; background: #FAFAFC; transition: filter .08s; }
+  #pad button:active { filter: brightness(0.9); }
+  #pad button.fn { background: #E9E9EC; }
+  #pad button.fn.sm { font-size: calc(92 * var(--u)); }
+  #pad button.op { background: #858585; color: #fff; }
+  #pad button.eq { background: #17C300; color: #fff; }
+  #pad button svg { width: calc(100 * var(--u)); height: calc(100 * var(--u)); }
+  #pad button .pp { letter-spacing: calc(14 * var(--u)); }
+  #pad button .pm { font-size: calc(76 * var(--u)); }
+
+  #history { position: absolute; inset: 0; background: #F6F6F8; display: none; flex-direction: column; z-index: 5; }
+  #history.show { display: flex; }
+  #hList { flex: 1; overflow-y: auto; padding: calc(40 * var(--u)) calc(60 * var(--u)) 0; display: flex; flex-direction: column; justify-content: flex-end; }
+  .hItem { text-align: right; padding: calc(24 * var(--u)) 0; }
+  .hItem .e { font-size: calc(58 * var(--u)); color: #8E8E93; font-weight: 300; word-break: break-all; }
+  .hItem .r { font-size: calc(84 * var(--u)); color: #2B2B2B; font-weight: 300; word-break: break-all; }
+  .hEmpty { text-align: center; color: #A0A0A5; font-size: calc(60 * var(--u)); margin-bottom: calc(300 * var(--u)); }
+  #hClear { align-self: center; border: 0; background: #E9E9EC; color: #444; font-size: calc(54 * var(--u)); font-family: inherit; border-radius: calc(60 * var(--u)); padding: calc(26 * var(--u)) calc(70 * var(--u)); margin: calc(30 * var(--u)) 0 calc(60 * var(--u)); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div id="display">
+      <div id="expr"><span class="t" id="exprText"></span><span id="cursor"></span></div>
+      <div id="preview"></div>
+    </div>
+    <div id="tools">
+      <button id="bHist" aria-label="기록">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#777" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:calc(64*var(--u));height:calc(64*var(--u))"><circle cx="32" cy="32" r="28"/><path d="M32 17v16h13"/></svg>
+      </button>
+      <button id="bUnit" aria-label="단위 변환">
+        <svg width="72" height="40" viewBox="0 0 72 40" fill="none" stroke="#777" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:calc(72*var(--u));height:calc(40*var(--u))"><rect x="3" y="3" width="66" height="34" rx="9"/><path d="M17 4v13M29 4v9M41 4v13M53 4v9"/></svg>
+      </button>
+      <button id="bSci" aria-label="공학 계산기">
+        <svg width="60" height="64" viewBox="0 0 60 64" fill="none" stroke="#777" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:calc(60*var(--u));height:calc(64*var(--u))"><rect x="3" y="3" width="54" height="58" rx="9"/><text x="12" y="27" font-size="19" font-weight="700" fill="#777" stroke="none" font-family="sans-serif">√π</text><text x="12" y="52" font-size="19" font-weight="700" fill="#777" stroke="none" font-family="sans-serif">e≡</text></svg>
+      </button>
+      <button id="bBack" data-k="back" aria-label="지우기">
+        <svg width="76" height="56" viewBox="0 0 76 56" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" style="width:calc(76*var(--u));height:calc(56*var(--u))"><path d="M25 4H66a8 8 0 0 1 8 8V44a8 8 0 0 1-8 8H25L4 28Z"/><path d="M36 19l20 18M56 19L36 37"/></svg>
+      </button>
+    </div>
+    <div id="history">
+      <div id="hList"></div>
+      <button id="hClear">기록 삭제</button>
+    </div>
+  </div>
+  <div id="divider"></div>
+  <div id="pad">
+    <button class="fn" data-k="C">C</button>
+    <button class="fn sm" data-k="paren"><span class="pp">( )</span></button>
+    <button class="fn" data-k="%">%</button>
+    <button class="op" data-k="÷" aria-label="나누기"><svg viewBox="0 0 100 100" fill="#fff" stroke="#fff" stroke-width="7" stroke-linecap="round"><path d="M22 50H78"/><circle cx="50" cy="25" r="6" stroke-width="4"/><circle cx="50" cy="75" r="6" stroke-width="4"/></svg></button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="op" data-k="×" aria-label="곱하기"><svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"><path d="M27 27L73 73M73 27L27 73"/></svg></button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button class="op" data-k="−" aria-label="빼기"><svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"><path d="M22 50H78"/></svg></button>
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button class="op" data-k="+" aria-label="더하기"><svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"><path d="M22 50H78M50 22V78"/></svg></button>
+    <button data-k="sign"><span class="pm">+/−</span></button>
+    <button data-k="0">0</button>
+    <button data-k=".">.</button>
+    <button class="eq" data-k="=" aria-label="같음"><svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"><path d="M24 39H76M24 61H76"/></svg></button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 정확한 유리수 연산 (BigInt) ---------- */
+  const gcd = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) { [a, b] = [b, a % b]; } return a; };
+  class Q {
+    constructor(n, d = 1n) { if (d < 0n) { n = -n; d = -d; } const g = gcd(n, d) || 1n; this.n = n / g; this.d = d / g; }
+    add(o) { return new Q(this.n * o.d + o.n * this.d, this.d * o.d); }
+    sub(o) { return new Q(this.n * o.d - o.n * this.d, this.d * o.d); }
+    mul(o) { return new Q(this.n * o.n, this.d * o.d); }
+    div(o) { if (o.n === 0n) throw new Error('div0'); return new Q(this.n * o.d, this.d * o.n); }
+    neg() { return new Q(-this.n, this.d); }
+  }
+  const parseNum = (s) => { const [i, f = ''] = s.split('.'); return new Q(BigInt((i || '0') + f), 10n ** BigInt(f.length)); };
+
+  // 십진 문자열(부호 포함). 유한소수면 정확히, 아니면 소수 10자리 반올림
+  function decStr(q) {
+    const neg = q.n < 0n; const n = neg ? -q.n : q.n; const d = q.d;
+    let t = d; while (t % 2n === 0n) t /= 2n; while (t % 5n === 0n) t /= 5n;
+    const finite = t === 1n;
+    let ip, frac = '';
+    if (finite) {
+      ip = (n / d).toString(); let rem = n % d;
+      while (rem !== 0n) { rem *= 10n; frac += (rem / d).toString(); rem %= d; }
+    } else {
+      const L = 10; const scaled = (n * 10n ** BigInt(L) * 2n + d) / (2n * d);
+      const s = scaled.toString().padStart(L + 1, '0'); ip = s.slice(0, -L); frac = s.slice(-L).replace(/0+$/, '');
+    }
+    return { neg: neg && (ip !== '0' || frac !== ''), ip, frac, finite };
+  }
+  function qToStr(q) { // 화면용 결과 문자열 (음수는 − 사용)
+    const r = decStr(q);
+    if (r.ip.length > 15) { // 지수 표기
+      const m = (r.ip[0] + '.' + r.ip.slice(1, 10)).replace(/\.?0+$/, '');
+      return (r.neg ? '−' : '') + m + 'E+' + (r.ip.length - 1);
+    }
+    return (r.neg ? '−' : '') + r.ip + (r.frac ? '.' + r.frac : '');
+  }
+
+  /* ---------- 수식 계산 ---------- */
+  function evaluate(src) {
+    let s = src.replace(/[+−×÷]+$/, '');
+    const opens = (s.match(/\(/g) || []).length, closes = (s.match(/\)/g) || []).length;
+    s += ')'.repeat(Math.max(0, opens - closes));
+    const t = s.match(/\d+(?:\.\d*)?|\.\d+|[+−×÷()%]/g) || [];
+    let p = 0;
+    function expr() {
+      let v = term().v;
+      while (t[p] === '+' || t[p] === '−') {
+        const op = t[p++]; const rt = term(); let rv = rt.v;
+        if (rt.pct) rv = v.mul(rt.v); // 200+10% → 200+(200×10%)
+        v = op === '+' ? v.add(rv) : v.sub(rv);
+      }
+      return v;
+    }
+    function term() {
+      const f = factor(); let v = f.v; let single = true;
+      while (t[p] === '×' || t[p] === '÷') {
+        single = false; const op = t[p++]; const g = factor();
+        v = op === '×' ? v.mul(g.v) : v.div(g.v);
+      }
+      return { v, pct: single && f.pct };
+    }
+    function factor() {
+      let neg = false;
+      if (t[p] === '−') { neg = true; p++; } else if (t[p] === '+') p++;
+      let v; const tk = t[p];
+      if (tk === '(') { p++; v = expr(); if (t[p] === ')') p++; }
+      else if (tk && /^[\d.]/.test(tk)) { v = parseNum(tk); p++; }
+      else throw new Error('syntax');
+      let pct = false;
+      while (t[p] === '%') { p++; v = v.div(new Q(100n)); pct = true; }
+      if (neg) v = v.neg();
+      return { v, pct };
+    }
+    if (!t.length) throw new Error('syntax');
+    const v = expr(); if (p < t.length) throw new Error('syntax'); return v;
+  }
+
+  /* ---------- 표시용 서식 (천 단위 쉼표) ---------- */
+  const withCommas = (ip) => ip.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const fmt = (s) => s.replace(/\d+(\.\d*)?/g, (m) => { const [i, f] = m.split('.'); return withCommas(i) + (f === undefined ? '' : '.' + f); });
+
+  /* ---------- 상태 ---------- */
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+                  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  const S = { expr: '', mode: 'edit', prev: '', resultRaw: '', err: false,
+              magicOn: store.get('mc_on', true), magic: null, history: store.get('mc_hist', []) };
+
+  const $ = (id) => document.getElementById(id);
+  const elExpr = $('exprText'), elWrap = $('expr'), elPrev = $('preview'), elDisp = $('display'), elBack = $('bBack');
+
+  function buzz(ms) { try { if (window.Android && window.Android.vibrate) window.Android.vibrate(ms); else if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+  /* ---------- 마술 ---------- */
+  const NUM = '(?:\\(−\\d+(?:\\.\\d+)?\\)|\\d+(?:\\.\\d+)?)';
+  const RE3 = new RegExp('^' + NUM + '×' + NUM + '×' + NUM + '$');
+  const nowMs = () => (typeof window.__fakeNow === 'number' ? window.__fakeNow : Date.now());
+
+  function kstParts(ms) {
+    const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+    const o = {}; f.formatToParts(new Date(ms)).forEach((p) => { o[p.type] = p.value; }); return o;
+  }
+  function targetStamp() {
+    const now = nowMs(); const sec = parseInt(kstParts(now).second, 10);
+    const o = kstParts(now + (sec >= 45 ? 60000 : 0));
+    return o.year + o.month + o.day + o.hour + o.minute;
+  }
+  function tryStartMagic() {
+    if (!S.magicOn || S.mode !== 'edit' || S.magic || !RE3.test(S.expr)) return false;
+    try {
+      const prod = evaluate(S.expr);
+      const x = new Q(BigInt(targetStamp())).sub(prod);
+      if (x.n < 0n) return false;
+      const r = decStr(x); if (!r.finite) return false;
+      const xs = r.ip + (r.frac ? '.' + r.frac : ''); if (xs.length > 40) return false;
+      S.magic = { prefix: S.expr, x: xs, n: 0 }; syncMagic(); return true;
+    } catch (e) { return false; }
+  }
+  function syncMagic() { const m = S.magic; S.expr = m.prefix + '+' + m.x.slice(0, m.n); }
+  function magicDigit() { const m = S.magic; if (m.n >= m.x.length) return; m.n++; if (m.x[m.n - 1] === '.' && m.n < m.x.length) m.n++; syncMagic(); }
+  function magicBack() {
+    const m = S.magic;
+    if (m.n > 0) { m.n--; if (m.n > 0 && m.x[m.n - 1] === '.') m.n--; syncMagic(); }
+    else { S.expr = m.prefix; S.magic = null; }
+  }
+  function magicFinish() { if (!S.magic) return; S.magic.n = S.magic.x.length; syncMagic(); S.magic = null; }
+
+  /* ---------- 일반 입력 ---------- */
+  const last = () => S.expr.slice(-1);
+  const curNum = () => S.expr.match(/(\d*\.?\d*)$/)[1];
+  const needMul = () => /[)%]$/.test(S.expr);
+
+  function inDigit(d) {
+    if (needMul()) S.expr += '×';
+    const cur = curNum();
+    if (cur === '0') S.expr = S.expr.slice(0, -1) + d;
+    else if (cur.replace('.', '').length >= 15) return;
+    else S.expr += d;
+  }
+  function inDot() {
+    const cur = curNum(); if (cur.includes('.')) return;
+    if (cur === '') { if (needMul()) S.expr += '×'; S.expr += '0.'; } else S.expr += '.';
+  }
+  function inOp(o) {
+    if (S.expr === '') { if (o === '−') S.expr = '−'; return; }
+    const l = last();
+    if ('+−×÷'.includes(l)) {
+      if (S.expr.length === 1) return;
+      if (l === '−' && S.expr.slice(-2, -1) === '(') return;
+      S.expr = S.expr.slice(0, -1) + o;
+    } else if (l === '(') { if (o === '−') S.expr += '−'; }
+    else S.expr += o;
+  }
+  function inParen() {
+    const o = (S.expr.match(/\(/g) || []).length, c = (S.expr.match(/\)/g) || []).length;
+    if (o > c && /[\d)%]$/.test(S.expr)) S.expr += ')';
+    else { if (/[\d)%]$/.test(S.expr)) S.expr += '×'; S.expr += '('; }
+  }
+  function inPercent() { if (/[\d)%]$/.test(S.expr)) S.expr += '%'; }
+  function inSign() {
+    let m = S.expr.match(/\(−(\d*\.?\d+)\)$/);
+    if (m) { S.expr = S.expr.slice(0, -m[0].length) + m[1]; return; }
+    m = S.expr.match(/(\d+\.?\d*)$/);
+    if (m) S.expr = S.expr.slice(0, -m[1].length) + '(−' + m[1] + ')';
+  }
+  function inBack() { S.expr = S.expr.slice(0, -1); }
+
+  function doEquals() {
+    if (!/[+−×÷%()]/.test(S.expr.replace(/^−/, ''))) return;
+    try {
+      const q = evaluate(S.expr); const res = qToStr(q);
+      S.history.push({ e: S.expr, r: res }); if (S.history.length > 100) S.history.shift(); store.set('mc_hist', S.history);
+      S.prev = S.expr; S.resultRaw = res; S.mode = 'result'; S.err = false;
+    } catch (e) { S.prev = S.expr; S.resultRaw = ''; S.mode = 'result'; S.err = true; }
+  }
+
+  function press(k) {
+    const isDigit = /^\d$/.test(k);
+
+    if (S.mode === 'result') {
+      if (k === 'C') { S.expr = ''; S.mode = 'edit'; S.err = false; return; }
+      if (k === '=') return;
+      const cont = S.err || /E/.test(S.resultRaw) ? '' : S.resultRaw;
+      S.mode = 'edit'; S.err = false;
+      S.expr = (isDigit || k === '.' || k === 'paren') ? '' : cont;
+      if (k === 'paren') S.expr = '';
+    }
+
+    if (S.magic) {
+      if (isDigit) { magicDigit(); return; }
+      if (k === 'back') { magicBack(); return; }
+      if (k === 'C') { S.magic = null; S.expr = ''; return; }
+      magicFinish(); // 그 밖의 키: 남은 자리를 채우고 일반 계산기로 이어감
+    }
+
+    if (isDigit) inDigit(k);
+    else switch (k) {
+      case '.': inDot(); break;
+      case '+': if (!tryStartMagic()) { if (S.magicOn && RE3.test(S.expr)) buzz(80); inOp('+'); } break;
+      case '−': case '×': case '÷': inOp(k); break;
+      case 'paren': inParen(); break;
+      case '%': inPercent(); break;
+      case 'sign': inSign(); break;
+      case 'back': inBack(); break;
+      case 'C': S.expr = ''; break;
+      case '=': doEquals(); break;
+    }
+  }
+
+  /* ---------- 화면 ---------- */
+  const SIZES = [150, 124, 100, 82, 68, 56, 46];
+  function fitText() {
+    const u = parseFloat(getComputedStyle($('app')).getPropertyValue('--u')) || 0.4;
+    elExpr.style.whiteSpace = 'nowrap';
+    let fit = false;
+    for (const px of SIZES) {
+      elWrap.style.fontSize = (px * u) + 'px';
+      const need = elExpr.getBoundingClientRect().width + (S.mode === 'edit' ? 10 * u : 0);
+      if (need <= elWrap.clientWidth - 4 * u) { fit = true; break; }
+    }
+    elExpr.style.whiteSpace = fit ? 'nowrap' : 'pre-wrap';
+    // 위쪽 작은 줄(미리보기/이전 수식)도 넘치면 줄임
+    for (const px of [80, 68, 58, 48, 40, 34]) {
+      elPrev.style.fontSize = (px * u) + 'px';
+      if (elPrev.scrollWidth <= elPrev.clientWidth) break;
+    }
+  }
+  function render() {
+    elDisp.classList.toggle('result', S.mode === 'result');
+    elBack.classList.toggle('on', S.mode === 'edit' && S.expr !== '');
+    if (S.mode === 'result') {
+      elExpr.textContent = S.err ? '수식이 잘못되었습니다' : fmt(S.resultRaw);
+      elPrev.textContent = fmt(S.prev);
+    } else {
+      elExpr.textContent = fmt(S.expr);
+      let pv = '';
+      if (/[+−×÷%()]/.test(S.expr.replace(/^−/, '')) && !/^\(?[\d.]*\)?$/.test(S.expr)) {
+        try { pv = fmt(qToStr(evaluate(S.expr))); } catch (e) { pv = ''; }
+      }
+      elPrev.textContent = pv;
+    }
+    fitText();
+  }
+
+  function fitApp() {
+    const w = window.innerWidth, h = window.innerHeight;
+    const u = Math.min(w / 1080, h / 2100);
+    $('app').style.setProperty('--u', u + 'px');
+    render();
+  }
+
+  /* ---------- 기록 / 숨은 전환 ---------- */
+  function renderHistory() {
+    const box = $('hList'); box.innerHTML = '';
+    if (!S.history.length) { const d = document.createElement('div'); d.className = 'hEmpty'; d.textContent = '기록이 없습니다'; box.appendChild(d); return; }
+    S.history.forEach((h) => {
+      const it = document.createElement('div'); it.className = 'hItem';
+      const e = document.createElement('div'); e.className = 'e'; e.textContent = fmt(h.e);
+      const r = document.createElement('div'); r.className = 'r'; r.textContent = fmt(h.r);
+      it.appendChild(e); it.appendChild(r); box.appendChild(it);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+  function toggleHistory() { const h = $('history'); const show = !h.classList.contains('show'); if (show) renderHistory(); h.classList.toggle('show', show); }
+
+  let holdTimer = null, held = false;
+  const bh = $('bHist');
+  const startHold = () => { held = false; clearTimeout(holdTimer); holdTimer = setTimeout(() => {
+    held = true; S.magicOn = !S.magicOn; store.set('mc_on', S.magicOn);
+    if (S.magicOn) buzz(150); else { buzz(50); setTimeout(() => buzz(50), 160); }
+  }, 2000); };
+  const endHold = () => clearTimeout(holdTimer);
+  bh.addEventListener('pointerdown', startHold);
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => bh.addEventListener(ev, endHold));
+  bh.addEventListener('contextmenu', (e) => e.preventDefault());
+  bh.addEventListener('click', () => { if (held) { held = false; return; } toggleHistory(); });
+  $('hClear').addEventListener('click', () => { S.history = []; store.set('mc_hist', S.history); renderHistory(); });
+
+  /* ---------- 키 입력 연결 ---------- */
+  document.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { press(b.dataset.k); render(); }));
+  window.addEventListener('resize', fitApp);
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  window.__press = (k) => { press(k); render(); };   // 점검용
+  window.__state = () => ({ expr: S.expr, mode: S.mode, result: S.resultRaw, magicOn: S.magicOn });
+  fitApp();
+})();
+</script>
+</body>
+</html>

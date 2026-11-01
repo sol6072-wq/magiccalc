@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- 회색 원: 연산 키 -->
+    <path android:fillColor="#858585"
+        android:pathData="M54,54m-24,0a24,24 0 1,0 48,0a24,24 0 1,0 -48,0" />
+    <!-- 초록 원: = 키 -->
+    <path android:fillColor="#17C300"
+        android:pathData="M54,54m-17,0a17,17 0 1,0 34,0a17,17 0 1,0 -34,0" />
+    <!-- = 기호 -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M45,49h18v3h-18zM45,56h18v3h-18z" />
+</vector>
