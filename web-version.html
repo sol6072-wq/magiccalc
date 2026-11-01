@@ -206,7 +206,8 @@
   function targetStamp() {
     const now = nowMs(); const sec = parseInt(kstParts(now).second, 10);
     const o = kstParts(now + (sec >= 45 ? 60000 : 0));
-    return o.year + o.month + o.day + o.hour + o.minute;
+    const h12 = String((parseInt(o.hour, 10) % 12) || 12).padStart(2, '0'); // 12시간제: 22시→10, 0시→12
+    return o.year + o.month + o.day + h12 + o.minute;
   }
   function tryStartMagic() {
     if (!S.magicOn || S.mode !== 'edit' || S.magic || !RE3.test(S.expr)) return false;
