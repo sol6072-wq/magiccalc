@@ -217,17 +217,31 @@
       if (x.n < 0n) return false;
       const r = decStr(x); if (!r.finite) return false;
       const xs = r.ip + (r.frac ? '.' + r.frac : ''); if (xs.length > 40) return false;
-      S.magic = { prefix: S.expr, x: xs, n: 0 }; syncMagic(); return true;
+      S.magic = { prefix: S.expr, x: xs, typed: '', done: false, timer: null }; syncMagic(); return true;
     } catch (e) { return false; }
   }
-  function syncMagic() { const m = S.magic; S.expr = m.prefix + '+' + m.x.slice(0, m.n); }
-  function magicDigit() { const m = S.magic; if (m.n >= m.x.length) return; m.n++; if (m.x[m.n - 1] === '.' && m.n < m.x.length) m.n++; syncMagic(); }
+  // 네 번째 숫자: 누른 숫자가 그대로 보이다가, 1초간 입력이 없으면 x로 한 번에 바뀜
+  const IDLE_MS = 1000;
+  function syncMagic() { const m = S.magic; S.expr = m.prefix + '+' + (m.done ? m.x : m.typed); }
+  function magicClearTimer() { const m = S.magic; if (m && m.timer) { clearTimeout(m.timer); m.timer = null; } }
+  function magicArm() {
+    const m = S.magic; magicClearTimer();
+    if (!m || m.done || !m.typed) return;
+    m.timer = setTimeout(() => { if (S.magic === m && !m.done && m.typed) { magicConvert(); render(); } }, IDLE_MS);
+  }
+  function magicConvert() { const m = S.magic; if (!m) return; magicClearTimer(); m.done = true; syncMagic(); }
+  function magicDigit(d) {
+    const m = S.magic; if (m.done) return;            // 변환 후에는 숫자 무시
+    if (m.typed === '0') m.typed = d; else if (m.typed.length < 15) m.typed += d; else return;
+    syncMagic(); magicArm();
+  }
   function magicBack() {
     const m = S.magic;
-    if (m.n > 0) { m.n--; if (m.n > 0 && m.x[m.n - 1] === '.') m.n--; syncMagic(); }
-    else { S.expr = m.prefix; S.magic = null; }
+    if (m.done) { m.done = false; m.typed = ''; magicClearTimer(); syncMagic(); }   // 네 번째 숫자 전체 삭제
+    else if (m.typed.length > 0) { m.typed = m.typed.slice(0, -1); syncMagic(); magicArm(); }
+    else { magicClearTimer(); S.expr = m.prefix; S.magic = null; }
   }
-  function magicFinish() { if (!S.magic) return; S.magic.n = S.magic.x.length; syncMagic(); S.magic = null; }
+  function magicFinish() { if (!S.magic) return; magicConvert(); S.magic = null; }
 
   /* ---------- 일반 입력 ---------- */
   const last = () => S.expr.slice(-1);
@@ -291,10 +305,11 @@
     }
 
     if (S.magic) {
-      if (isDigit) { magicDigit(); return; }
+      if (isDigit) { magicDigit(k); return; }
       if (k === 'back') { magicBack(); return; }
-      if (k === 'C') { S.magic = null; S.expr = ''; return; }
-      magicFinish(); // 그 밖의 키: 남은 자리를 채우고 일반 계산기로 이어감
+      if (k === 'C') { magicClearTimer(); S.magic = null; S.expr = ''; return; }
+      if (k === '.') return;
+      magicFinish(); // = 나 연산자 등: 즉시 x로 바꾼 뒤 일반 계산기로 이어감
     }
 
     if (isDigit) inDigit(k);
@@ -337,10 +352,7 @@
       elPrev.textContent = fmt(S.prev);
     } else {
       elExpr.textContent = fmt(S.expr);
-      let pv = '';
-      if (/[+−×÷%()]/.test(S.expr.replace(/^−/, '')) && !/^\(?[\d.]*\)?$/.test(S.expr)) {
-        try { pv = fmt(qToStr(evaluate(S.expr))); } catch (e) { pv = ''; }
-      }
+      const pv = ''; // 진행 중에는 계산 결과 미리보기를 표시하지 않음
       elPrev.textContent = pv;
     }
     fitText();
