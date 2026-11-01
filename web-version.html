@@ -221,7 +221,7 @@
     } catch (e) { return false; }
   }
   // 네 번째 숫자: 누른 숫자가 그대로 보이다가, 1초간 입력이 없으면 x로 한 번에 바뀜
-  const IDLE_MS = 500;
+  const IDLE_MS = 1000;
   function syncMagic() { const m = S.magic; S.expr = m.prefix + '+' + (m.done ? m.x : m.typed); }
   function magicClearTimer() { const m = S.magic; if (m && m.timer) { clearTimeout(m.timer); m.timer = null; } }
   function magicArm() {
